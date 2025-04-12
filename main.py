@@ -9,11 +9,16 @@ data_frame = None
 
 def clean_data() -> pd.DataFrame:
     """
-    This function gets the data and remove
-    unecessary rows from it
+    Retrieves data from the csv and removes unecessary rows from it
+    Cleans up rows with too many NA entries, and removes the id column, resetting the index
     """
     data_frame = pd.read_csv(DATA_FILE)
-    data_frame = data_frame[data_frame.isna().sum(axis = 1) <= 4]
+    data_frame = data_frame[data_frame.isna().sum(axis = 1) <= 4] # Max 4 NA values
+
+    # Shift the data frame over by one to drop the id number
+    data_frame = data_frame.iloc[:, 1:]
+    data_frame.reset_index(drop = True, inplace = True)
+
     return data_frame
 
 X = ['0', '4', '5', '6', '7', '8', '9']
@@ -58,12 +63,6 @@ class NeuralNetwork(T.nn.Module):
         self.split_data()
         print(self.train_data)
 
-# so do we just run chatgpt (chatgpt api is the  way ) and nmake it sovle it????? --yes -- thats goofy -- that's cs
-# w can import decision tree
-# instead of decision tree cant we just use scikit to do th esame things as pytorch-Neural Network?? yea
-
-
-    
 if __name__ == '__main__':
     data = clean_data()
     model = NeuralNetwork(data)
