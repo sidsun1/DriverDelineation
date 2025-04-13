@@ -5,11 +5,14 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 class DriverDecisionModel:
-    def __init__(self, data_path='data/data.csv'):
+    def __init__(self, data_path=Path('data/data.csv')):
         self.data_path = Path(data_path)
         self.df = None
-        self.clf = DecisionTreeClassifier(random_state=42)
-        self.features = ['city_name', 'signup_os', 'signup_channel', 'vehicle_make', 'vehicle_year']
+        self.clf = DecisionTreeClassifier(random_state=42, max_depth=10, min_samples_split=20, min_samples_leaf=10)
+        self.features = [
+            'city_name', 'signup_os', 'signup_channel', 'vehicle_make', 'vehicle_model', 'vehicle_year',
+            'signup_date', 'bgc_date', 'vehicle_added_date'
+        ]
         self.X_train, self.X_test = None, None
         self.y_train, self.y_test = None, None
         self.y_pred = None
@@ -18,16 +21,21 @@ class DriverDecisionModel:
         self.df = pd.read_csv(self.data_path)
         self.df['first_completed'] = self.df['first_completed_date'].notna().astype(int)
 
-        self.df = self.df.drop(columns=[
-            'id', 'signup_date', 'bgc_date', 'vehicle_added_date',
-            'vehicle_model', 'first_completed_date'
-        ])
+        # Convert date columns to datetime then to ordinal (number of days)
+        date_cols = ['signup_date', 'bgc_date', 'vehicle_added_date']
+        for col in date_cols:
+            self.df[col] = pd.to_datetime(self.df[col], errors='coerce')
+            self.df[col] = self.df[col].map(lambda x: x.toordinal() if pd.notna(x) else 0)
 
         self.df['vehicle_year'] = self.df['vehicle_year'].fillna(0)
 
-        categorical_cols = ['city_name', 'signup_os', 'signup_channel', 'vehicle_make']
+        # Encode categorical columns
+        categorical_cols = ['city_name', 'signup_os', 'signup_channel', 'vehicle_make', 'vehicle_model']
         for col in categorical_cols:
             self.df[col] = pd.factorize(self.df[col])[0]
+
+        # Drop only the unused columns
+        self.df = self.df.drop(columns=['id', 'first_completed_date'])
 
     def split_data(self, test_size=10000):
         X = self.df[self.features]
@@ -40,7 +48,7 @@ class DriverDecisionModel:
     def train_model(self):
         self.clf.fit(self.X_train, self.y_train)
 
-    def evaluate_and_save_predictions(self, output_file='predictions.csv'):
+    def evaluate_and_save_predictions(self, output_file=Path('data/predictions.csv')):
         self.y_pred = self.clf.predict(self.X_test)
 
         output_rows = []
@@ -64,7 +72,7 @@ class DriverDecisionModel:
         accuracy = (correct / len(self.y_test)) * 100
         print(f"\nManual Accuracy: {accuracy:.2f}% ({correct} out of {len(self.y_test)} correct)")
 
-    def visualize_predictions(self, input_file='predictions.csv'):
+    def visualize_predictions(self, input_file=Path('data/predictions.csv')):
         df = pd.read_csv(input_file)
         df['error'] = df['Predicted'] != df['Actual']
 
@@ -76,12 +84,24 @@ class DriverDecisionModel:
         plt.ylabel('Number of Predictions')
         plt.show()
 
+    def show_feature_importance(self):
+        importances = self.clf.feature_importances_
+        plt.figure(figsize=(8, 5))
+        plt.bar(self.features, importances, color='blue')
+        plt.title('Feature Importances')
+        plt.ylabel('Importance Score')
+        plt.xlabel('Feature')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
+
     def run(self):
         self.load_and_prepare_data()
         self.split_data()
         self.train_model()
         self.evaluate_and_save_predictions()
         self.visualize_predictions()
+        self.show_feature_importance()
 
 
 if __name__ == '__main__':
