@@ -4,6 +4,7 @@ import torch as T
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 DATA_FILE = Path('data/data.csv')
 data_frame = None
@@ -18,7 +19,7 @@ def clean_data() -> pd.DataFrame:
     Retrieves data from the csv and removes unecessary rows from it
     Cleans up rows with too many NA entries, and removes the id column, resetting the index
     """
-    
+
     data_frame = pd.read_csv(DATA_FILE)
     # data_frame = data_frame[data_frame.isna().sum(axis = 1) <= 5] # Max 5 NA values
 
@@ -36,7 +37,7 @@ def clean_data() -> pd.DataFrame:
 
     data_frame['completed'] = data_frame['first_completed_date'].notna().astype(int)
 
-    data_frame = data_frame[['city_name', 'signup_os', 'signup_channel', 'vehicle_make', 'vehicle_model', 'completed']]
+    data_frame = data_frame[['city_name', 'signup_os', 'signup_channel', 'vehicle_make', 'vehicle_model', 'vehicle_year', 'completed']]
 
     cat_cols = data_frame.select_dtypes(include=['object']).columns
 
@@ -151,7 +152,34 @@ class NeuralNetwork(T.nn.Module):
         plt.ylabel('Count')
         plt.show()
 
+def explore_feature_insights(df: pd.DataFrame):
+
+    # Heatmap
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(df.corr(), annot=True, cmap='coolwarm')
+    plt.title("Correlation Heatmap")
+    plt.show()
+
+    # Completions
+    plt.figure(figsize=(5, 3))
+    sns.countplot(data=df, x='completed')
+    plt.title("Distribution of Completed First Trip")
+    plt.xticks([0, 1], ['Not Completed', 'Completed'])
+    plt.show()
+
+    # Each feature's impact
+    for col in X:
+        plt.figure(figsize=(6, 4))
+        sns.boxplot(data=df, x='completed', y=col)
+        plt.title(f"{col} vs Completed First Trip")
+        plt.xlabel("Completed")
+        plt.ylabel(col)
+        plt.xticks([0, 1], ['No', 'Yes'])
+        plt.tight_layout()
+        plt.show()
+
 if __name__ == '__main__':
     data = clean_data()
+    explore_feature_insights(data)
     model = NeuralNetwork(data, len(X), len(label_columns))
     model.run()
